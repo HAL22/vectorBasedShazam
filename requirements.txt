@@ -1,0 +1,7 @@
+lyricsgenius
+lxml
+openai
+langchain
+pinecone-client
+streamlit
+tiktoken
