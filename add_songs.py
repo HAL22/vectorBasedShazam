@@ -39,40 +39,49 @@ def songs_to_add():
 
     return songs    
 
+
+def tiktoken_len(text):
+    tokenizer = tiktoken.get_encoding('cl100k_base')
+    tokens = tokenizer.encode(
+        text,
+        disallowed_special=()
+    )
+    return len(tokens)
+
 def get_text_chunks_metadata(texts,songs,chunk_size=400):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=200)
-    total_chunks = []
+    docs = [Document(page_content=t, metadata={"spotify_link":songs[i],"youtube_link":songs[i]}) for i,t in enumerate(texts)]
 
-    for id,text in enumerate(texts):
-        chunks = text_splitter.split_documents(text)
-        for idx,chunk in enumerate(chunks):
-            chunks[idx].metadata['spotify_link'] = songs[id]
-            chunks[idx].metadata['youtube_link'] = songs[id]
+    text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=chunk_size,
+    chunk_overlap=20,  # number of tokens overlap between chunks
+    )
+  
+    chunks = text_splitter.split_documents(docs)
 
-        total_chunks = total_chunks + chunks
-
-    docs = [Document(page_content=c) for c in total_chunks]
-
-    return docs    
+    return chunks   
 
     
 def get_songs(songs):
     genius = Genius(constants.GENIUS_CLIENT_ACCESS_TOKEN)
     lyrics = []
-    artist = []
+    musician = []
 
     for song in songs:
-        song_artist = song.split(' ')
+        song_artist = song.split(',')
 
-        artist.append(song_artist)
+        print(f"Song: {song_artist[1]} by {song_artist[0]} is being added")
 
-        artist = genius.search_artist(song_artist[0], max_songs=3, sort="title")
+        musician.append(song_artist[0])
+
+        artist = genius.search_artist(song_artist[0], max_songs=1, sort="title")
 
         song = genius.search_song(song_artist[1], artist.name)
 
         lyrics.append(song.lyrics)
 
-    return lyrics, artist    
+        print(f"Song: {song_artist[1]} by {song_artist[0]} added")
+
+    return lyrics, musician    
 
 def add_songs():
     songs = []
@@ -81,7 +90,7 @@ def add_songs():
 
     lyrics, artist = get_songs(songs)
 
-    docs =  get_text_chunks_metadata(lyrics,artist,500)
+    docs =  get_text_chunks_metadata(lyrics,artist,800)
 
     index  = load_pinecone(docs)  
 
